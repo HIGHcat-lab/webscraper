@@ -26,16 +26,55 @@ def extract_summary(html_content):
 
     return f"{title}: {description}"
 
+def fetch_wikipedia_info(company_name):
+    search_url = f"https://en.wikipedia.org/wiki/{company_name.replace(' ', '_')}"
+    try:
+        response = requests.get(search_url, timeout=10)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        info_box = soup.find('table', {'class': 'infobox'})
+        if not info_box:
+            return "No Wikipedia infobox found."
+
+        info = {}
+        for row in info_box.find_all('tr'):
+            header = row.find('th')
+            value = row.find('td')
+            if header and value:
+                key = header.text.strip()
+                val = value.text.strip().replace('\n', ', ')
+                info[key] = val
+
+        details = ""
+        for item in ['Founded', 'Founder', 'Headquarters', 'Area served', 'Key people', 'Industry']:
+            if item in info:
+                details += f"{item}: {info[item]}\n"
+
+        return details if details else "No detailed info found."
+
+    except requests.exceptions.RequestException as e:
+        return f"Error fetching Wikipedia data: {e}"
+
 if __name__ == "__main__":
     while True:
         clear()
-        domain = input("Enter the domain name (e.g., example.com): ").strip()
-        if domain == 'exit':
+        domain = input("Enter the domain name (e.g., example.com) or 'exit' to quit: ").strip()
+        if domain.lower() == 'exit':
+            clear()
             sys.exit()
+
         print(f"\nAnalyzing {domain}...")
         content = fetch_website(domain)
         if content:
             summary = extract_summary(content)
-            print("\nSummary about the site:")
+            print("\nWebsite Summary:")
             print(summary)
+
+            company_name = domain.split('.')[0]
+            print("\nFetching additional information from Wikipedia...")
+            wiki_info = fetch_wikipedia_info(company_name)
+            print("\nWikipedia Information:")
+            print(wiki_info)
+
         input("\nPress Enter to continue...")
